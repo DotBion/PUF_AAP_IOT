@@ -35,7 +35,7 @@ clen = int(5)
 nlen = int(6)
 idlen = int(12)
 key="w9z$C&E)H@McQfTj"
-
+ids_score = 1
 def write_file(uid,sigma):
     #add check if uid does not exist in file
     with open('py_data.txt', 'a') as f:
@@ -105,15 +105,32 @@ def authenticate(conn, uid):
     
     #send C,nonce,seed
     cns = C+N+seed
-    #print("cns: " + cns)
+    print("cns: " + cns)
     #send c,nonce,seed #c,n,sid,n2 ******sid known to client previously **************also put reauthenticate logic
-    conn.send(cns.encode())
-    
-    beta = hashlib.sha256((alpha+N).encode()).hexdigest()
-    #rcv beta client
-    client_beta = conn.recv(1024).decode()
-    #print("beta generated: " + str(beta))
-    #print("beta from user: " + str(client_beta))
+    if(ids_score): #encryption enabled if ids = 1
+        
+        ecns = AESCipher(key).encrypt(cns).decode('utf-8')
+        print("ecns: " + str(ecns))
+        ecns = str(ids_score) + ecns
+        print("ecns+ids: " + str(ecns))
+        conn.send(ecns.encode())
+
+        beta = hashlib.sha256((alpha+N).encode()).hexdigest()
+        #rcv beta client
+        eb = conn.recv(1024).decode()
+        client_beta = AESCipher(key).decrypt(eb).decode('utf-8')
+        #print("beta generated: " + str(beta))
+        #print("beta from user: " + str(client_beta))
+    else:
+        cns = str(ids_score) + cns
+        print("cns+ids: " + str(cns))
+        conn.send(cns.encode())
+
+        beta = hashlib.sha256((alpha+N).encode()).hexdigest()
+        #rcv beta client
+        client_beta = conn.recv(1024).decode()
+        #print("beta generated: " + str(beta))
+        #print("beta from user: " + str(client_beta))
     #send ack
     if(client_beta == beta):
         ret = 1
@@ -125,12 +142,14 @@ def authenticate(conn, uid):
 
 def server_program():
     
-    try:
+    #try:
         print("At server:")
+        global ids_score
+        ids_score = int(input("Enter threat level: high=1, low=0 "))
         # get the hostname
         host = socket.gethostname()
         port = 5000  # initiate port no above 1024
-
+        
         server_socket = socket.socket()  # get instance
         # look closely. The bind() function takes tuple as argument
         server_socket.bind((host, port))  # bind host address and port together
@@ -187,8 +206,8 @@ def server_program():
                 conn.send(data.encode())  # send data to the client
         
         conn.close()  # close the connection
-    except:
-        print("authentication failed")
+    #except:
+    #    print("authentication failed")
 
 if __name__ == '__main__':
     server_program()

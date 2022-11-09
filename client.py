@@ -78,27 +78,48 @@ def authenticate(client_socket):
     client_socket.send(message.encode()) 
     
     #rcv c,n,seed               #sid,n2
-    cns = client_socket.recv(1024).decode()  
-    #print('Received from server: ' + cns)
-    cns = str(cns)
-    C,N,seed = cns[:clen], cns[clen:clen+nlen], cns[clen+nlen:]
-    #print('C, nonce, seed: ', C,N,seed)
-    rpuf = hashlib.sha256(C.encode()).hexdigest()
-    #print("rpuf: ",rpuf)
-    alpha = hashlib.sha256((rpuf+seed+SID).encode()).hexdigest()
-    #print("alpha: ",alpha)
-    beta = hashlib.sha256((alpha+N).encode()).hexdigest()
-    #print("alpha+N2: ",alpha+N)
+    ecns = client_socket.recv(1024).decode()  
+    print('Received from server: ' + ecns)
+    ecns = str(ecns)
+    print('Received from server: ' + ecns)
     
-    #send beta
-    client_socket.send(beta.encode()) 
+    ids_score = int(ecns[0])
+    print('ids_score: ', ids_score)
+    ecns = ecns[1:]
+    print('trim cns: ' + ecns)
+    
+    if(ids_score):
+        cns = AESCipher(key).decrypt(ecns).decode('utf-8')
+        C,N,seed = cns[:clen], cns[clen:clen+nlen], cns[clen+nlen:]
+        #print('C, nonce, seed: ', C,N,seed)
+        rpuf = hashlib.sha256(C.encode()).hexdigest()
+        #print("rpuf: ",rpuf)
+        alpha = hashlib.sha256((rpuf+seed+SID).encode()).hexdigest()
+        #print("alpha: ",alpha)
+        beta = hashlib.sha256((alpha+N).encode()).hexdigest()
+        eb = AESCipher(key).encrypt(beta).decode('utf-8')
+        #print("alpha+N2: ",alpha+N)
+        #send encrypted beta
+        client_socket.send(eb.encode()) 
+    else:
+        cns = ecns
+        C,N,seed = cns[:clen], cns[clen:clen+nlen], cns[clen+nlen:]
+        #print('C, nonce, seed: ', C,N,seed)
+        rpuf = hashlib.sha256(C.encode()).hexdigest()
+        #print("rpuf: ",rpuf)
+        alpha = hashlib.sha256((rpuf+seed+SID).encode()).hexdigest()
+        #print("alpha: ",alpha)
+        beta = hashlib.sha256((alpha+N).encode()).hexdigest()
+        #print("alpha+N2: ",alpha+N)
+        #send beta
+        client_socket.send(beta.encode()) 
     #rcv ack
     data = int(client_socket.recv(1024).decode())
     return data
     
 
 def client_program():
-    try:
+    #try:
         print("At client_program:")
         host = socket.gethostname()  # as both code is running on same pc
         port = 5000  # socket server port number
@@ -140,8 +161,8 @@ def client_program():
                 message = input(" -> ")  # again take input
         
         client_socket.close()  # close the connection
-    except:
-        print("authentication failed")
+    #except:
+    #    print("authentication failed")
     
 
 if __name__ == '__main__':
